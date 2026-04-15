@@ -1,65 +1,532 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import {
+  Home,
+  SearchCheck,
+  ArchiveRestore,
+  Package,
+  Workflow,
+  TriangleAlert,
+  Search,
+  Filter,
+  Ellipsis,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsRight,
+  ChevronDown,
+} from "lucide-react";
+import { useState, useMemo } from "react";
+import { chartData, requisitionsData, type ChartCategory } from "./data";
+
+const statusMap: Record<string, string> = {
+  "Open Requisition": "openReq",
+  "Active Order Line": "activeOrder",
+  "On-Plan": "onPlan",
+  "Price Leakage": "priceLeakage",
+};
+
+const navItems = [
+  { icon: Home, active: false },
+  { icon: SearchCheck, active: false },
+  { icon: ArchiveRestore, active: true },
+  { icon: Package, active: false },
+  { icon: Workflow, active: false },
+  { icon: TriangleAlert, active: false },
+];
+
+function StatusCell({ status }: { status: string }) {
+  if (status === "Price Leakage") {
+    return (
+      <div className="flex items-center gap-2">
+        <TriangleAlert className="w-3 h-3 text-[#ef4444] shrink-0" fill="#ef4444" strokeWidth={0} />
+        <span className="text-sm text-[#0a0a0a] truncate">Price Leakage</span>
+      </div>
+    );
+  }
+  return <span className="text-sm text-[#0a0a0a] truncate">{status}</span>;
+}
+
+const segmentColors = [
+  { key: "openReq" as const, color: "#9333ea", label: "Open Requisition" },
+  { key: "activeOrder" as const, color: "#0891b2", label: "Active Order Lines" },
+  { key: "onPlan" as const, color: "#4f46e5", label: "On-Plan" },
+  { key: "priceLeakage" as const, color: "#ef4444", label: "Price Leakage" },
+];
+
+function ChartLegend() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex flex-wrap gap-3">
+      {segmentColors.map((item) => (
+        <div key={item.label} className="flex items-center gap-1 px-1 py-0.5 rounded-[2px]">
+          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+          <span className="text-[12px] leading-[16px] text-[#0a0a0a]">{item.label}</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+      ))}
+    </div>
+  );
+}
+
+interface DrillState {
+  path: string[];
+  selectedBar: string | null;
+}
+
+function getAxisLabel(depth: number, parentLabel?: string): string {
+  if (depth === 0) return "Fastener Categories";
+  if (depth === 1) return `${parentLabel} Types`;
+  return "Items";
+}
+
+function getCategories(path: string[]): ChartCategory[] {
+  if (path.length === 0) return chartData;
+  let current: ChartCategory[] = chartData;
+  for (const segment of path) {
+    const found = current.find((c) => c.label === segment);
+    if (found?.children) {
+      current = found.children;
+    } else {
+      return [];
+    }
+  }
+  return current;
+}
+
+function getMaxValue(categories: ChartCategory[]): number {
+  let max = 0;
+  for (const cat of categories) {
+    const total = cat.openReq + cat.activeOrder + cat.onPlan + cat.priceLeakage;
+    if (total > max) max = total;
+  }
+  const roundTo = max > 100 ? 20 : max > 50 ? 10 : 5;
+  return Math.ceil(max / roundTo) * roundTo;
+}
+
+function generateXLabels(maxVal: number): string[] {
+  const step = maxVal <= 30 ? 5 : maxVal <= 60 ? 10 : 20;
+  const labels: string[] = [];
+  for (let i = 0; i <= maxVal; i += step) {
+    labels.push(`$${i} M`);
+  }
+  return labels;
+}
+
+interface BarChartProps {
+  categories: ChartCategory[];
+  selectedBar: string | null;
+  axisLabel: string;
+  onBarClick: (label: string) => void;
+  hasChildren: (label: string) => boolean;
+}
+
+function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, hasChildren }: BarChartProps) {
+  const maxVal = getMaxValue(categories);
+  const xLabels = generateXLabels(maxVal);
+
+  return (
+    <div className="flex flex-col gap-3 flex-1 w-full">
+      <div className="flex items-start w-full">
+        <span className="text-[12px] font-semibold leading-[12px] text-[#0a0a0a]">{axisLabel}</span>
+      </div>
+      <div className="flex gap-2 flex-1 pr-4 w-full">
+        <div className="flex flex-col justify-around shrink-0" style={{ paddingBottom: 48 }}>
+          {categories.map((cat) => (
+            <div key={cat.label} className="flex items-center justify-end">
+              <span
+                className="text-[12px] leading-[16px] whitespace-nowrap text-right transition-opacity duration-300"
+                style={{
+                  color: selectedBar && selectedBar !== cat.label ? "#c4c4c4" : "#737373",
+                }}
+              >
+                {cat.label}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-col flex-1">
+          <div className="flex-1 relative">
+            <div className="absolute inset-0 flex justify-between pointer-events-none">
+              {xLabels.map((_, i) => (
+                <div key={i} className="w-px bg-[#e5e5e5] h-full" />
+              ))}
+            </div>
+
+            <div className="relative h-full flex flex-col justify-around py-2">
+              {categories.map((cat) => {
+                const isFaded = selectedBar !== null && selectedBar !== cat.label;
+                const clickable = hasChildren(cat.label);
+                return (
+                  <div
+                    key={cat.label}
+                    className={`flex items-center h-[16px] transition-opacity duration-300 ${clickable ? "cursor-pointer" : ""}`}
+                    style={{ opacity: isFaded ? 0.2 : 1 }}
+                    onClick={() => onBarClick(cat.label)}
+                  >
+                    <div className="h-full flex" style={{ width: "100%" }}>
+                      {segmentColors.map((seg, i) => {
+                        const val = cat[seg.key];
+                        const pct = (val / maxVal) * 100;
+                        const isFirst = i === 0;
+                        const isLast = i === segmentColors.length - 1;
+                        return (
+                          <div
+                            key={seg.key}
+                            className="h-full transition-all duration-300"
+                            style={{
+                              width: `${pct}%`,
+                              backgroundColor: seg.color,
+                              borderRadius: isFirst && isLast
+                                ? "2px"
+                                : isFirst
+                                ? "2px 0 0 2px"
+                                : isLast
+                                ? "0 2px 2px 0"
+                                : undefined,
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between">
+              {xLabels.map((label) => (
+                <span key={label} className="text-[12px] leading-[16px] text-[#737373] text-center whitespace-nowrap">
+                  {label}
+                </span>
+              ))}
+            </div>
+            <div className="flex justify-center">
+              <span className="text-[14px] font-semibold leading-[16px] text-[#0a0a0a] text-center">
+                Total Spend Lifecycle ($M)
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Breadcrumbs({ path, onNavigate }: { path: string[]; onNavigate: (depth: number) => void }) {
+  if (path.length === 0) return null;
+  return (
+    <div className="flex items-center gap-1 text-[12px] leading-[16px]">
+      <button
+        onClick={() => onNavigate(0)}
+        className="text-[#2563eb] hover:underline cursor-pointer"
+      >
+        All Categories
+      </button>
+      {path.map((segment, i) => (
+        <span key={i} className="flex items-center gap-1">
+          <span className="text-[#737373]">/</span>
+          {i === path.length - 1 ? (
+            <span className="text-[#0a0a0a] font-medium">{segment}</span>
+          ) : (
+            <button
+              onClick={() => onNavigate(i + 1)}
+              className="text-[#2563eb] hover:underline cursor-pointer"
+            >
+              {segment}
+            </button>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export default function SourcingOptimization() {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [drill, setDrill] = useState<DrillState>({ path: [], selectedBar: null });
+
+  const currentCategories = useMemo(() => getCategories(drill.path), [drill.path]);
+  const axisLabel = getAxisLabel(drill.path.length, drill.path[drill.path.length - 1]);
+
+  const filteredItems = useMemo(() => {
+    let items = requisitionsData;
+    if (drill.path.length >= 1) {
+      items = items.filter((r) => r.category === drill.path[0]);
+    }
+    if (drill.path.length >= 2) {
+      items = items.filter((r) => r.subCategory === drill.path[1]);
+    }
+    if (drill.selectedBar && drill.path.length === 0) {
+      items = items.filter((r) => r.category === drill.selectedBar);
+    } else if (drill.selectedBar && drill.path.length === 1) {
+      items = items.filter((r) => r.subCategory === drill.selectedBar);
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      items = items.filter(
+        (r) =>
+          r.item.toLowerCase().includes(q) ||
+          r.supplier.toLowerCase().includes(q) ||
+          r.status.toLowerCase().includes(q)
+      );
+    }
+    return items;
+  }, [drill, searchQuery]);
+
+  const handleBarClick = (label: string) => {
+    if (drill.selectedBar === label) {
+      const cat = currentCategories.find((c) => c.label === label);
+      if (cat?.children) {
+        setDrill({ path: [...drill.path, label], selectedBar: null });
+        setCurrentPage(1);
+      }
+    } else {
+      setDrill({ ...drill, selectedBar: label });
+      setCurrentPage(1);
+    }
+  };
+
+  const handleBreadcrumbNavigate = (depth: number) => {
+    setDrill({ path: drill.path.slice(0, depth), selectedBar: null });
+    setCurrentPage(1);
+  };
+
+  const hasChildren = (label: string): boolean => {
+    const cat = currentCategories.find((c) => c.label === label);
+    return !!(cat?.children && cat.children.length > 0);
+  };
+
+  const totalFilteredItems = filteredItems.length;
+  const rowsPerPage = 12;
+  const paginatedItems = filteredItems.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const totalPages = Math.ceil(totalFilteredItems / rowsPerPage);
+  const startItem = (currentPage - 1) * rowsPerPage + 1;
+  const endItem = Math.min(currentPage * rowsPerPage, totalFilteredItems);
+
+  return (
+    <div className="flex h-screen bg-[#fafafa]">
+      {/* Left nav sidebar */}
+      <div className="w-[68px] bg-white border-r border-[#e5e5e5] flex flex-col items-center pt-0 pb-2 shrink-0">
+        <div className="flex items-center justify-center p-3 w-full">
+          <div className="w-8 h-8 flex items-center justify-center">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="32" height="32" rx="4" fill="#0a0a0a"/>
+              <path d="M8 10h6v2H8v-2zm0 5h10v2H8v-2zm0 5h8v2H8v-2zm16-10h2v12h-2V10zm-4 2h2v10h-2V12z" fill="white"/>
+            </svg>
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col gap-1 items-center w-full px-2 py-2">
+          {navItems.map(({ icon: Icon, active }, idx) => (
+            <div
+              key={idx}
+              className={`w-full h-[52px] flex flex-col items-center justify-center rounded-sm cursor-pointer ${
+                active ? "bg-[rgba(37,99,235,0.1)]" : "hover:bg-[#f5f5f5]"
+              }`}
+            >
+              <Icon
+                className={`w-5 h-5 ${active ? "text-[#2563eb]" : "text-[#737373]"}`}
+                strokeWidth={1.5}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="bg-white border-b border-[#e5e5e5] flex items-center shrink-0 h-10">
+          <div className="flex items-center gap-1 h-10 px-4">
+            <span className="text-sm font-semibold text-[#0a0a0a] tracking-[0.1px]">
+              Sourcing Optimization
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 p-4 flex-1 overflow-auto">
+          {/* Chart card */}
+          <div className="bg-white border border-[#e5e5e5] rounded-md flex flex-col gap-4 p-4 h-[468px]">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-3 h-6">
+                  <div className="flex-1 flex items-center gap-1 h-6">
+                    <h2 className="text-[16px] font-semibold leading-[20px] text-[#0a0a0a]">Procurement Triage</h2>
+                  </div>
+                </div>
+                <p className="text-[14px] leading-[20px] text-[#737373]">
+                  Monitoring $412 M in total spend lifecycle across key commodity groups
+                </p>
+              </div>
+              <Breadcrumbs path={drill.path} onNavigate={handleBreadcrumbNavigate} />
+            </div>
+
+            <ChartLegend />
+
+            <HorizontalBarChart
+              categories={currentCategories}
+              selectedBar={drill.selectedBar}
+              axisLabel={axisLabel}
+              onBarClick={handleBarClick}
+              hasChildren={hasChildren}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </div>
+
+          {/* Data grid card */}
+          <div className="bg-white border border-[#e5e5e5] rounded-md flex flex-col p-4">
+            <div className="flex flex-col pb-4">
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center h-6">
+                    <div className="flex-1 flex items-center gap-1 h-6">
+                      <h2 className="text-[16px] font-semibold leading-[20px] text-[#0a0a0a]">
+                        Requisitions
+                        {(drill.path.length > 0 || drill.selectedBar) && (
+                          <span className="text-[14px] font-normal text-[#737373] ml-2">
+                            {drill.selectedBar || drill.path[drill.path.length - 1]}
+                          </span>
+                        )}
+                      </h2>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="border border-[#e5e5e5] flex items-center gap-2 h-8 px-3 rounded-sm w-[200px]">
+                      <Search className="w-3.5 h-3.5 text-[#737373] shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Search"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="text-sm text-[#737373] bg-transparent outline-none flex-1 placeholder:text-[#737373]"
+                      />
+                    </div>
+                    <button className="flex items-center justify-center w-8 h-8 rounded-sm">
+                      <Filter className="w-3.5 h-3.5 text-[#737373]" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col">
+              <div className="border-t border-[#e5e5e5] flex items-center">
+                {["Item", "Status", "Commodity", "Supplier", "Master Price", "Actual Price", "Variance", "Total Value"].map((header) => (
+                  <div
+                    key={header}
+                    className="flex-1 flex items-center gap-1 h-8 min-h-8 overflow-hidden px-2 py-1"
+                  >
+                    <span className="text-sm font-semibold text-[#0a0a0a] tracking-[0.1px] truncate">
+                      {header}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-end h-8 min-h-8 w-[60px] max-w-[60px] min-w-[60px] px-2 py-1">
+                  <div className="opacity-0">
+                    <Ellipsis className="w-3.5 h-3.5 text-[#737373]" />
+                  </div>
+                </div>
+              </div>
+
+              {paginatedItems.map((row, idx) => (
+                <div
+                  key={idx}
+                  className="border-t border-[#e5e5e5] flex items-center h-12"
+                >
+                  <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
+                    <span className="text-sm text-[#2563eb] truncate">{row.item}</span>
+                  </div>
+                  <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
+                    <StatusCell status={row.status} />
+                  </div>
+                  <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
+                    <span className="text-sm text-[#0a0a0a] truncate">{row.commodity}</span>
+                  </div>
+                  <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
+                    <span className="text-sm text-[#0a0a0a] truncate">{row.supplier}</span>
+                  </div>
+                  <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
+                    <span className="text-sm text-[#0a0a0a] truncate">{row.masterPrice}</span>
+                  </div>
+                  <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
+                    <span className="text-sm text-[#0a0a0a] truncate">{row.actualPrice}</span>
+                  </div>
+                  <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
+                    <span className="text-sm text-[#0a0a0a] truncate">{row.variance}</span>
+                  </div>
+                  <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
+                    <span className="text-sm text-[#0a0a0a] truncate">{row.totalValue}</span>
+                  </div>
+                  <div className="flex items-center justify-end h-full w-[60px] max-w-[60px] min-w-[60px] px-2 py-1">
+                    <button className="flex items-center justify-center w-6 h-6 rounded-sm">
+                      <Ellipsis className="w-3.5 h-3.5 text-[#737373]" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {paginatedItems.length === 0 && (
+                <div className="border-t border-[#e5e5e5] flex items-center justify-center h-24">
+                  <span className="text-sm text-[#737373]">No items match the current filter</span>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-[#e5e5e5] flex items-center justify-between pt-3 mt-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[#737373]">Rows per page:</span>
+                <button className="flex items-center gap-1 text-xs text-[#0a0a0a] font-medium">
+                  12
+                  <ChevronDown className="w-2.5 h-2.5 text-[#0a0a0a]" />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[#737373]">
+                  {totalFilteredItems > 0 ? `${startItem} - ${endItem} of ${totalFilteredItems} Items` : "0 Items"}
+                </span>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="w-6 h-6 flex items-center justify-center rounded-sm text-[#737373] hover:bg-[#f5f5f5] disabled:opacity-30"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-6 h-6 flex items-center justify-center rounded-sm text-xs ${
+                        currentPage === page
+                          ? "text-[#2563eb] border border-[#2563eb] font-medium"
+                          : "text-[#0a0a0a] hover:bg-[#f5f5f5]"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  {totalPages > 5 && <span className="text-xs text-[#737373] px-1">...</span>}
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                    className="w-6 h-6 flex items-center justify-center rounded-sm text-[#737373] hover:bg-[#f5f5f5] disabled:opacity-30"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                    className="w-6 h-6 flex items-center justify-center rounded-sm text-[#737373] hover:bg-[#f5f5f5] disabled:opacity-30"
+                  >
+                    <ChevronsRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
