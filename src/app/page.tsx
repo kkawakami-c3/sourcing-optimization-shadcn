@@ -381,7 +381,7 @@ function DetailView({ item, onBack }: { item: RequisitionItem; onBack: () => voi
 
       <div className="flex flex-col gap-4 p-4 flex-1 overflow-auto">
         {/* Header card with progress stepper */}
-        <div className="bg-white rounded-sm shadow-[0px_2px_1px_0px_rgba(17,17,18,0.04),0px_1px_6px_0px_rgba(17,17,18,0.1),0px_1px_2px_0px_rgba(17,17,18,0.2)] flex flex-col gap-8 p-7">
+        <div className="bg-white rounded-md border border-[#e5e5e5] flex flex-col gap-8 p-7">
           <div className="flex flex-col gap-1">
             <span className="text-[12px] font-medium leading-[15px] text-[rgba(17,17,18,0.65)] uppercase tracking-[0.6px]">
               {detail.categoryLabel}
@@ -396,7 +396,7 @@ function DetailView({ item, onBack }: { item: RequisitionItem; onBack: () => voi
 
         {/* Requisition tab */}
         {activeTab === 0 && (
-          <div className="bg-white rounded-sm shadow-[0px_2px_1px_0px_rgba(17,17,18,0.04),0px_1px_6px_0px_rgba(17,17,18,0.1),0px_1px_2px_0px_rgba(17,17,18,0.2)] flex flex-col gap-8 p-7">
+          <div className="bg-white rounded-md border border-[#e5e5e5] flex flex-col gap-8 p-7">
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-[10px]">
                 <span className="text-[12px] font-medium leading-[15px] text-[rgba(17,17,18,0.65)] uppercase tracking-[0.6px]">
@@ -448,24 +448,13 @@ function DetailView({ item, onBack }: { item: RequisitionItem; onBack: () => voi
                 </div>
               </div>
             </div>
-
-            <div className="flex items-end justify-end pt-6">
-              <div className="flex gap-4">
-                <button className="h-10 min-w-[80px] px-3 border border-[#db1c3c] rounded-sm text-[14px] font-medium text-[#db1c3c] opacity-40">
-                  Reject
-                </button>
-                <button className="h-10 min-w-[80px] px-3 bg-[#2266f0] rounded-sm text-[14px] font-medium text-white opacity-40">
-                  Approve
-                </button>
-              </div>
-            </div>
           </div>
         )}
 
         {/* Order Line tab */}
         {activeTab === 1 && (
           <>
-            <div className="bg-white rounded-sm shadow-[0px_2px_1px_0px_rgba(17,17,18,0.04),0px_1px_6px_0px_rgba(17,17,18,0.1),0px_1px_2px_0px_rgba(17,17,18,0.2)] flex flex-col gap-8 p-7">
+            <div className="bg-white rounded-md border border-[#e5e5e5] flex flex-col gap-8 p-7">
               <div className="flex flex-col gap-1">
                 <span className="text-[12px] font-medium leading-[15px] text-[rgba(17,17,18,0.65)] uppercase tracking-[0.6px]">
                   {detail.reqId}
@@ -802,12 +791,14 @@ export default function SourcingOptimization() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="bg-white border-b border-[#e5e5e5] flex items-center shrink-0 h-10">
-          <div className="flex items-center gap-1 h-10 px-4">
+        <div className="bg-white border-b border-[#e5e5e5] flex items-center justify-between shrink-0 h-10 px-4">
+          <div className="flex items-center gap-1 h-10">
             <span className="text-sm font-semibold text-[#0a0a0a] tracking-[0.1px]">
               Sourcing Optimization
             </span>
           </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/sparkle.png" alt="" width={14} height={14} className="shrink-0" />
         </div>
 
         {selectedItem ? (
