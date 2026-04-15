@@ -627,36 +627,40 @@ function DetailView({ item, onBack }: { item: RequisitionItem; onBack: () => voi
 }
 
 function Breadcrumbs({ path, onNavigate }: { path: string[]; onNavigate: (depth: number) => void }) {
-  if (path.length === 0) return null;
   return (
-    <div
-      key={path.join("/")}
-      className="flex items-center gap-1 text-[12px] leading-[15px] tracking-[0.2px] shrink-0"
-      style={{
-        opacity: 0,
-        animation: "breadcrumbFadeIn 350ms cubic-bezier(0.16, 1, 0.3, 1) 100ms both",
-      }}
-    >  <button
-        onClick={() => onNavigate(0)}
-        className="font-medium text-[rgba(17,17,18,0.65)] hover:text-[rgba(17,17,18,0.85)] cursor-pointer max-w-[200px] truncate"
-      >
-        All Categories
-      </button>
-      {path.map((segment, i) => (
-        <span key={i} className="flex items-center gap-1">
-          <span className="text-[#6c717a]">/</span>
-          {i === path.length - 1 ? (
-            <span className="font-medium text-[rgba(17,17,18,0.95)] max-w-[200px] truncate">{segment}</span>
-          ) : (
-            <button
-              onClick={() => onNavigate(i + 1)}
-              className="font-medium text-[rgba(17,17,18,0.65)] hover:text-[rgba(17,17,18,0.85)] cursor-pointer max-w-[200px] truncate"
-            >
-              {segment}
-            </button>
-          )}
-        </span>
-      ))}
+    <div className="h-[15px]">
+      {path.length > 0 && (
+        <div
+          key={path.join("/")}
+          className="flex items-center gap-1 text-[12px] leading-[15px] tracking-[0.2px]"
+          style={{
+            opacity: 0,
+            animation: "breadcrumbFadeIn 350ms cubic-bezier(0.16, 1, 0.3, 1) 100ms both",
+          }}
+        >
+          <button
+            onClick={() => onNavigate(0)}
+            className="font-medium text-[rgba(17,17,18,0.65)] hover:text-[rgba(17,17,18,0.85)] cursor-pointer max-w-[200px] truncate"
+          >
+            All Categories
+          </button>
+          {path.map((segment, i) => (
+            <span key={i} className="flex items-center gap-1">
+              <span className="text-[#6c717a]">/</span>
+              {i === path.length - 1 ? (
+                <span className="font-medium text-[rgba(17,17,18,0.95)] max-w-[200px] truncate">{segment}</span>
+              ) : (
+                <button
+                  onClick={() => onNavigate(i + 1)}
+                  className="font-medium text-[rgba(17,17,18,0.65)] hover:text-[rgba(17,17,18,0.85)] cursor-pointer max-w-[200px] truncate"
+                >
+                  {segment}
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -671,8 +675,16 @@ export default function SourcingOptimization() {
   const animTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setAnimPhase("idle"), 700);
-    return () => clearTimeout(t);
+    if (animPhase === "fade-in") {
+      const t = setTimeout(() => setAnimPhase("idle"), 700);
+      return () => clearTimeout(t);
+    }
+  }, [animPhase, animKey]);
+
+  const handleBackFromDetail = useCallback(() => {
+    setSelectedItem(null);
+    setAnimKey((k) => k + 1);
+    setAnimPhase("fade-in");
   }, []);
 
   const currentCategories = useMemo(() => getCategories(drill.path), [drill.path]);
@@ -729,10 +741,6 @@ export default function SourcingOptimization() {
           setDrill({ path: [...drill.path, label], selectedBar: null });
           setAnimPhase("fade-in");
           setCurrentPage(1);
-
-          animTimeout.current = setTimeout(() => {
-            setAnimPhase("idle");
-          }, 600);
         }, 250);
       }, 400);
     } else {
@@ -750,7 +758,6 @@ export default function SourcingOptimization() {
     setAnimKey((k) => k + 1);
     setDrill({ path: drill.path.slice(0, depth), selectedBar: null });
     setCurrentPage(1);
-    setTimeout(() => setAnimPhase("idle"), 600);
   };
 
   const hasChildren = (label: string): boolean => {
@@ -804,26 +811,26 @@ export default function SourcingOptimization() {
         </div>
 
         {selectedItem ? (
-          <DetailView item={selectedItem} onBack={() => setSelectedItem(null)} />
+          <DetailView item={selectedItem} onBack={handleBackFromDetail} />
         ) : (
         <div className="flex flex-col gap-2 p-4 flex-1 overflow-auto">
           {/* Chart card */}
           <div className="bg-white border border-[#e5e5e5] rounded-md flex flex-col gap-4 p-4 h-[468px]">
-            <div className="flex gap-[10px] items-start">
-              <div className="flex-1 flex flex-col gap-1 min-w-0">
-                <div className="flex items-center gap-3 h-6">
-                  <div className="flex-1 flex items-center gap-1 h-6">
-                    <h2 className="text-[16px] font-semibold leading-[20px] text-[#0a0a0a]">Procurement Triage</h2>
-                  </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-3 h-6">
+                <div className="flex-1 flex items-center gap-1 h-6">
+                  <h2 className="text-[16px] font-semibold leading-[20px] text-[#0a0a0a]">Procurement Triage</h2>
                 </div>
-                <p className="text-[14px] leading-[20px] text-[#737373]">
-                  Monitoring $412 M in total spend lifecycle across key commodity groups
-                </p>
               </div>
-              <Breadcrumbs path={drill.path} onNavigate={handleBreadcrumbNavigate} />
+              <p className="text-[14px] leading-[20px] text-[#737373]">
+                Monitoring $412 M in total spend lifecycle across key commodity groups
+              </p>
             </div>
 
+            <Breadcrumbs path={drill.path} onNavigate={handleBreadcrumbNavigate} />
+
             <HorizontalBarChart
+              key={animKey}
               categories={currentCategories}
               selectedBar={drill.selectedBar}
               axisLabel={axisLabel}
