@@ -210,7 +210,7 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
                 return (
                   <div
                     key={`${animKey}-${cat.label}`}
-                    className={`flex items-center h-[16px] overflow-hidden ${clickable ? "cursor-pointer" : ""}`}
+                    className={`flex items-center h-[16px] ${isFadingIn ? "overflow-hidden" : "overflow-visible"} ${clickable ? "cursor-pointer" : ""}`}
                     style={isFadingIn ? {} : {
                       transition: `opacity ${animPhase === "fade-selected" ? 250 : 400}ms cubic-bezier(0.4, 0, 0.2, 1)`,
                       opacity: getBarOpacity(cat.label),
@@ -234,7 +234,7 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
                         return (
                           <div
                             key={seg.key}
-                            className="h-full"
+                            className="h-full relative group/seg"
                             style={{
                               width: `${pct}%`,
                               backgroundColor: seg.color,
@@ -246,7 +246,13 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
                                 ? "0 2px 2px 0"
                                 : undefined,
                             }}
-                          />
+                          >
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-[#0a0a0a] text-white text-[11px] leading-[14px] rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover/seg:opacity-100 transition-opacity duration-150 z-50 shadow-lg">
+                              <div className="font-medium">{seg.label}</div>
+                              <div className="text-[#a3a3a3] mt-0.5">${val} M</div>
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-[#0a0a0a]" />
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
@@ -288,22 +294,22 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
 function Breadcrumbs({ path, onNavigate }: { path: string[]; onNavigate: (depth: number) => void }) {
   if (path.length === 0) return null;
   return (
-    <div className="flex items-center gap-1 text-[12px] leading-[16px]">
+    <div className="flex items-center gap-1 text-[12px] leading-[15px] tracking-[0.2px] shrink-0">
       <button
         onClick={() => onNavigate(0)}
-        className="text-[#2563eb] hover:underline cursor-pointer"
+        className="font-medium text-[rgba(17,17,18,0.65)] hover:text-[rgba(17,17,18,0.85)] cursor-pointer max-w-[200px] truncate"
       >
         All Categories
       </button>
       {path.map((segment, i) => (
         <span key={i} className="flex items-center gap-1">
-          <span className="text-[#737373]">/</span>
+          <span className="text-[#6c717a]">/</span>
           {i === path.length - 1 ? (
-            <span className="text-[#0a0a0a] font-medium">{segment}</span>
+            <span className="font-medium text-[rgba(17,17,18,0.95)] max-w-[200px] truncate">{segment}</span>
           ) : (
             <button
               onClick={() => onNavigate(i + 1)}
-              className="text-[#2563eb] hover:underline cursor-pointer"
+              className="font-medium text-[rgba(17,17,18,0.65)] hover:text-[rgba(17,17,18,0.85)] cursor-pointer max-w-[200px] truncate"
             >
               {segment}
             </button>
@@ -457,8 +463,8 @@ export default function SourcingOptimization() {
         <div className="flex flex-col gap-2 p-4 flex-1 overflow-auto">
           {/* Chart card */}
           <div className="bg-white border border-[#e5e5e5] rounded-md flex flex-col gap-4 p-4 h-[468px]">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
+            <div className="flex gap-[10px] items-start">
+              <div className="flex-1 flex flex-col gap-1 min-w-0">
                 <div className="flex items-center gap-3 h-6">
                   <div className="flex-1 flex items-center gap-1 h-6">
                     <h2 className="text-[16px] font-semibold leading-[20px] text-[#0a0a0a]">Procurement Triage</h2>
