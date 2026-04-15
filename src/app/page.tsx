@@ -72,8 +72,10 @@ interface DrillState {
 }
 
 function getAxisLabel(depth: number, parentLabel?: string): string {
-  if (depth === 0) return "Fastener Categories";
+  if (depth === 0) return "Part Categories";
+  if (depth === 1 && parentLabel === "Fasteners") return "Fastener Categories";
   if (depth === 1) return `${parentLabel} Types`;
+  if (depth === 2) return `${parentLabel} Types`;
   return "Items";
 }
 
@@ -253,15 +255,22 @@ export default function SourcingOptimization() {
   const filteredItems = useMemo(() => {
     let items = requisitionsData;
     if (drill.path.length >= 1) {
-      items = items.filter((r) => r.category === drill.path[0]);
+      items = items.filter((r) => r.topCategory === drill.path[0]);
     }
     if (drill.path.length >= 2) {
-      items = items.filter((r) => r.subCategory === drill.path[1]);
+      items = items.filter((r) => r.midCategory === drill.path[1]);
     }
-    if (drill.selectedBar && drill.path.length === 0) {
-      items = items.filter((r) => r.category === drill.selectedBar);
-    } else if (drill.selectedBar && drill.path.length === 1) {
-      items = items.filter((r) => r.subCategory === drill.selectedBar);
+    if (drill.path.length >= 3) {
+      items = items.filter((r) => r.subCategory === drill.path[2]);
+    }
+    if (drill.selectedBar) {
+      if (drill.path.length === 0) {
+        items = items.filter((r) => r.topCategory === drill.selectedBar);
+      } else if (drill.path.length === 1) {
+        items = items.filter((r) => r.midCategory === drill.selectedBar);
+      } else if (drill.path.length === 2) {
+        items = items.filter((r) => r.subCategory === drill.selectedBar);
+      }
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
