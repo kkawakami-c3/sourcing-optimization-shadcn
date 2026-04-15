@@ -16,7 +16,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { chartData, requisitionsData, type ChartCategory } from "./data";
+import { chartData, requisitionsData, getItemDetail, type ChartCategory, type RequisitionItem } from "./data";
 
 const statusMap: Record<string, string> = {
   "Open Requisition": "openReq",
@@ -291,6 +291,150 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
   );
 }
 
+const stepLabels = ["Requisition", "Order Line", "Invoice Matching", "Rebates"];
+
+function ProgressStepper({ currentStep }: { currentStep: number }) {
+  return (
+    <div className="flex gap-[25px] items-center w-full">
+      {stepLabels.map((label, idx) => {
+        const isComplete = idx < currentStep;
+        const isCurrent = idx === currentStep;
+        const isIncomplete = idx > currentStep;
+        return (
+          <div key={label} className="flex-1 flex flex-col gap-2 items-start">
+            <div className="w-full h-[9px] rounded-full overflow-hidden bg-[#fafafa]">
+              {isComplete && <div className="h-full w-full bg-[#2563eb] rounded-full" />}
+              {isCurrent && (
+                <div className="h-full bg-[#2563eb] rounded-full" style={{ width: "45%" }} />
+              )}
+              {isIncomplete && <div className="h-full w-full bg-[#e5e5e5] rounded-full" />}
+            </div>
+            <div className="flex items-center gap-2">
+              {isComplete && (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
+                  <circle cx="7" cy="7" r="7" fill="#2563eb" />
+                  <path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+              {isCurrent && (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
+                  <circle cx="7" cy="7" r="6" stroke="#2563eb" strokeWidth="2" strokeDasharray="3 2" />
+                </svg>
+              )}
+              {isIncomplete && (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
+                  <circle cx="7" cy="7" r="6" stroke="#737373" strokeWidth="1.5" />
+                </svg>
+              )}
+              <span className="text-[12px] font-medium leading-[15px] tracking-[0.2px] text-[#0a0a0a]">{label}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DetailView({ item, onBack }: { item: RequisitionItem; onBack: () => void }) {
+  const detail = useMemo(() => getItemDetail(item), [item]);
+
+  return (
+    <>
+      <div className="bg-white border-b border-[#e5e5e5] flex items-center h-8 px-4">
+        <div className="flex items-center gap-1 text-[12px] leading-[16px] tracking-[0.2px]">
+          <button onClick={onBack} className="font-medium text-[rgba(17,17,18,0.65)] hover:text-[rgba(17,17,18,0.85)] cursor-pointer">
+            Procurement
+          </button>
+          <span className="text-[#6c717a]">/</span>
+          <span className="font-medium text-[rgba(17,17,18,0.95)]">{detail.itemName}</span>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4 p-4 flex-1 overflow-auto">
+        {/* Header card with progress stepper */}
+        <div className="bg-white rounded-sm shadow-[0px_2px_1px_0px_rgba(17,17,18,0.04),0px_1px_6px_0px_rgba(17,17,18,0.1),0px_1px_2px_0px_rgba(17,17,18,0.2)] flex flex-col gap-8 p-7 overflow-hidden">
+          <div className="flex flex-col gap-1">
+            <span className="text-[12px] font-medium leading-[15px] text-[rgba(17,17,18,0.65)] uppercase tracking-[0.6px]">
+              {detail.categoryLabel}
+            </span>
+            <h1 className="text-[20px] font-medium leading-[25px] text-[rgba(17,17,18,0.95)]">{detail.itemName}</h1>
+            <span className="text-[12px] font-normal leading-[15px] text-[rgba(17,17,18,0.65)] tracking-[0.2px]">
+              Last updated on {detail.lastUpdated}
+            </span>
+          </div>
+          <ProgressStepper currentStep={detail.currentStep} />
+        </div>
+
+        {/* Requisition card */}
+        <div className="bg-white rounded-sm shadow-[0px_2px_1px_0px_rgba(17,17,18,0.04),0px_1px_6px_0px_rgba(17,17,18,0.1),0px_1px_2px_0px_rgba(17,17,18,0.2)] flex flex-col gap-8 p-7 overflow-hidden">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-[10px]">
+              <span className="text-[12px] font-medium leading-[15px] text-[rgba(17,17,18,0.65)] uppercase tracking-[0.6px]">
+                {detail.reqId}
+              </span>
+              {detail.approved && (
+                <span className="bg-[#c8f7ef] border border-[#c8f7ef] text-[#112e27] text-[14px] leading-[1.42] px-[9px] py-[3px] rounded">
+                  Approved
+                </span>
+              )}
+            </div>
+            <h2 className="text-[20px] font-medium leading-[25px] text-[rgba(17,17,18,0.95)]">Requisition</h2>
+            <span className="text-[12px] font-normal leading-[15px] text-[rgba(17,17,18,0.65)] tracking-[0.2px]">
+              {detail.requester}
+            </span>
+          </div>
+
+          <div className="flex gap-[10px] text-[14px] tracking-[0.2px] text-[rgba(17,17,18,0.95)]">
+            <div className="flex-1 flex flex-col gap-4">
+              <div className="flex items-start">
+                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Part</span>
+                <span className="font-normal leading-[21px]">{detail.partNumber}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Material Specs</span>
+                <span className="font-normal leading-[21px]">{detail.materialSpecs}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Quantity</span>
+                <span className="font-normal leading-[21px]">{detail.quantity}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Required Date</span>
+                <span className="font-normal leading-[21px]">{detail.requiredDate}</span>
+              </div>
+            </div>
+            <div className="flex-1 flex flex-col gap-4">
+              <div className="flex items-start">
+                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Requested Unit Price</span>
+                <span className="font-normal leading-[21px]">{detail.requestedUnitPrice}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Master Plan Price</span>
+                <span className="font-normal leading-[21px]">{detail.masterPlanPrice}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Total Estimated Value</span>
+                <span className="font-normal leading-[21px]">{detail.totalEstimatedValue}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-end justify-end pt-6">
+            <div className="flex gap-4">
+              <button className="h-10 min-w-[80px] px-3 border border-[#db1c3c] rounded-sm text-[14px] font-medium text-[#db1c3c] opacity-40">
+                Reject
+              </button>
+              <button className="h-10 min-w-[80px] px-3 bg-[#2266f0] rounded-sm text-[14px] font-medium text-white opacity-40">
+                Approve
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function Breadcrumbs({ path, onNavigate }: { path: string[]; onNavigate: (depth: number) => void }) {
   if (path.length === 0) return null;
   return (
@@ -331,6 +475,7 @@ export default function SourcingOptimization() {
   const [searchQuery, setSearchQuery] = useState("");
   const [drill, setDrill] = useState<DrillState>({ path: [], selectedBar: null });
   const [animPhase, setAnimPhase] = useState<AnimPhase>("fade-in");
+  const [selectedItem, setSelectedItem] = useState<RequisitionItem | null>(null);
   const [animKey, setAnimKey] = useState(0);
   const animTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -467,6 +612,9 @@ export default function SourcingOptimization() {
           </div>
         </div>
 
+        {selectedItem ? (
+          <DetailView item={selectedItem} onBack={() => setSelectedItem(null)} />
+        ) : (
         <div className="flex flex-col gap-2 p-4 flex-1 overflow-auto">
           {/* Chart card */}
           <div className="bg-white border border-[#e5e5e5] rounded-md flex flex-col gap-4 p-4 h-[468px]">
@@ -506,11 +654,6 @@ export default function SourcingOptimization() {
                     <div className="flex-1 flex items-center gap-1 h-6">
                       <h2 className="text-[16px] font-semibold leading-[20px] text-[#0a0a0a]">
                         Requisitions
-                        {(drill.path.length > 0 || drill.selectedBar) && (
-                          <span className="text-[14px] font-normal text-[#737373] ml-2">
-                            {drill.selectedBar || drill.path[drill.path.length - 1]}
-                          </span>
-                        )}
                       </h2>
                     </div>
                   </div>
@@ -560,7 +703,9 @@ export default function SourcingOptimization() {
                   className="border-t border-[#e5e5e5] flex items-center h-12"
                 >
                   <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
-                    <span className="text-sm text-[#2563eb] truncate">{row.item}</span>
+                    <button onClick={() => setSelectedItem(row)} className="text-sm text-[#2563eb] truncate cursor-pointer hover:underline text-left">
+                      {row.item}
+                    </button>
                   </div>
                   <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
                     <StatusCell status={row.status} />
@@ -598,59 +743,62 @@ export default function SourcingOptimization() {
               )}
             </div>
 
-            <div className="border-t border-[#e5e5e5] flex items-center justify-between pt-3 mt-0">
+            <div className="border-t border-[#e5e5e5] flex items-center justify-between pt-4 px-2">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-[#737373]">Rows per page:</span>
-                <button className="flex items-center gap-1 text-xs text-[#0a0a0a] font-medium">
-                  12
-                  <ChevronDown className="w-2.5 h-2.5 text-[#0a0a0a]" />
+                <span className="text-[12px] font-medium leading-[12px] text-[#737373]">Rows per page:</span>
+                <button className="flex items-center gap-1 border-b border-[#e5e5e5] h-6">
+                  <span className="text-[12px] font-medium leading-[12px] text-[#0a0a0a]">12</span>
+                  <ChevronDown className="w-4 h-4 text-[#737373]" />
                 </button>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[#737373]">
-                  {totalFilteredItems > 0 ? `${startItem} - ${endItem} of ${totalFilteredItems} Items` : "0 Items"}
+              <div className="flex items-center gap-4">
+                <span className="text-[12px] font-medium leading-[12px] text-[#737373]">
+                  {totalFilteredItems > 0 ? `${startItem} - ${endItem} of ${totalFilteredItems} items` : "0 items"}
                 </span>
-                <div className="flex items-center gap-0.5">
+                <div className="flex items-center gap-1">
                   <button
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="w-6 h-6 flex items-center justify-center rounded-sm text-[#737373] hover:bg-[#f5f5f5] disabled:opacity-30"
+                    className="h-6 flex items-center justify-center px-[9px] text-[#737373] disabled:opacity-40"
                   >
-                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <ChevronLeft className="w-4 h-4" />
                   </button>
                   {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((page) => (
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`w-6 h-6 flex items-center justify-center rounded-sm text-xs ${
+                      className={`w-6 h-6 flex items-center justify-center text-[12px] font-medium leading-[12px] ${
                         currentPage === page
-                          ? "text-[#2563eb] border border-[#2563eb] font-medium"
-                          : "text-[#0a0a0a] hover:bg-[#f5f5f5]"
+                          ? "text-[#2563eb] border-b-[3px] border-[#2563eb]"
+                          : "text-[#0a0a0a]"
                       }`}
                     >
                       {page}
                     </button>
                   ))}
-                  {totalPages > 5 && <span className="text-xs text-[#737373] px-1">...</span>}
+                  {totalPages > 5 && (
+                    <span className="w-6 h-6 flex items-center justify-center text-[12px] font-medium leading-[12px] text-[#0a0a0a]">...</span>
+                  )}
                   <button
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages || totalPages === 0}
-                    className="w-6 h-6 flex items-center justify-center rounded-sm text-[#737373] hover:bg-[#f5f5f5] disabled:opacity-30"
+                    className="h-6 flex items-center justify-center px-[9px] text-[#737373] disabled:opacity-40"
                   >
-                    <ChevronRight className="w-3.5 h-3.5" />
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setCurrentPage(totalPages)}
                     disabled={currentPage === totalPages || totalPages === 0}
-                    className="w-6 h-6 flex items-center justify-center rounded-sm text-[#737373] hover:bg-[#f5f5f5] disabled:opacity-30"
+                    className="h-6 flex items-center justify-center px-[6px] text-[#737373] disabled:opacity-40"
                   >
-                    <ChevronsRight className="w-3.5 h-3.5" />
+                    <ChevronsRight className="w-4 h-4" />
                   </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

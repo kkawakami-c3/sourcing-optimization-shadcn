@@ -21,6 +21,36 @@ export interface RequisitionItem {
   subCategory?: string;
 }
 
+export interface OrderItem {
+  poNumber: string;
+  dateOfArrival: string;
+  status: string;
+  supplier: string;
+  pricePerUnit: string;
+}
+
+export interface ItemDetail {
+  categoryLabel: string;
+  itemName: string;
+  lastUpdated: string;
+  reqId: string;
+  currentStep: number;
+  totalSpend: string;
+  totalVolume: string;
+  avgPricePaid: string;
+  activeSuppliers: string;
+  orders: OrderItem[];
+  partNumber: string;
+  materialSpecs: string;
+  quantity: string;
+  requiredDate: string;
+  requestedUnitPrice: string;
+  masterPlanPrice: string;
+  totalEstimatedValue: string;
+  requester: string;
+  approved: boolean;
+}
+
 export const chartData: ChartCategory[] = [
   {
     label: "Electronics",
@@ -183,3 +213,69 @@ export const requisitionsData: RequisitionItem[] = [
   { item: "Part #415-A: EPDM Rubber Seal", status: "On-Plan", commodity: "Raw Materials", supplier: "PolymerPlus", masterPrice: "$0.90", actualPrice: "$0.90", variance: "0.0%", totalValue: "$108,000", topCategory: "Raw Materials", midCategory: "Rubber Compound" },
   { item: "Part #415-B: Silicone Gasket", status: "Price Leakage", commodity: "Raw Materials", supplier: "PolymerPlus", masterPrice: "$1.40", actualPrice: "$1.75", variance: "+25.0%", totalValue: "$70,000", topCategory: "Raw Materials", midCategory: "Rubber Compound" },
 ];
+
+const supplierPool = ["Supplier A", "Supplier B", "Supplier C", "Supplier D", "Supplier E"];
+const orderStatuses = ["Ordered", "Delivered", "In Transit", "Processing"];
+
+function seededRandom(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 16807 + 0) % 2147483647;
+    return s / 2147483647;
+  };
+}
+
+export function getItemDetail(item: RequisitionItem): ItemDetail {
+  const seed = item.item.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const rng = seededRandom(seed);
+
+  const steps = ["Requisition", "Order Line", "Invoice Matching", "Rebates"];
+  const stepIdx = Math.min(Math.floor(rng() * 3) + 1, steps.length - 1);
+
+  const numOrders = 3 + Math.floor(rng() * 3);
+  const usedSuppliers = new Set<string>();
+  const orders: OrderItem[] = [];
+  for (let i = 0; i < numOrders; i++) {
+    const sup = supplierPool[Math.floor(rng() * supplierPool.length)];
+    usedSuppliers.add(sup);
+    const month = String(Math.floor(rng() * 6) + 5).padStart(2, "0");
+    const day = String(Math.floor(rng() * 28) + 1).padStart(2, "0");
+    orders.push({
+      poNumber: `#${10000 + Math.floor(rng() * 90000)}`,
+      dateOfArrival: `${month}/${day}/2026`,
+      status: orderStatuses[Math.floor(rng() * orderStatuses.length)],
+      supplier: sup,
+      pricePerUnit: item.actualPrice,
+    });
+  }
+
+  const itemName = item.item.replace(/^Part #[\w-]+:\s*/, "");
+  const partNum = item.item.match(/#([\w-]+)/)?.[1] || "000";
+  const category = [item.topCategory, item.midCategory].filter(Boolean).join(" & ").toUpperCase();
+
+  const materialOptions = ["Grade 8.8, Zinc Plated", "ASTM A307, Hot Dipped Galvanized", "18-8 Stainless Steel", "Grade 5, Plain Finish", "Nylon 6/6, Natural", "Alloy Steel, Black Oxide"];
+  const requesterNames = ["James Miller (Plant Manager, Tennessee)", "Sarah Chen (Procurement Lead, California)", "Robert Wilson (Supply Chain Director, Texas)", "Maria Garcia (Operations Manager, Ohio)"];
+  const months = ["January", "February", "March", "April", "May", "June"];
+
+  return {
+    categoryLabel: category,
+    itemName,
+    lastUpdated: "Feb 18, 2026 at 17:37",
+    reqId: `REQ-2025-${8000 + Math.floor(rng() * 2000)}`,
+    currentStep: stepIdx,
+    totalSpend: item.totalValue,
+    totalVolume: `${(10000 + Math.floor(rng() * 90000)).toLocaleString()} Units`,
+    avgPricePaid: item.actualPrice,
+    activeSuppliers: Array.from(usedSuppliers).join(", "),
+    orders,
+    partNumber: `#${partNum} (${itemName})`,
+    materialSpecs: materialOptions[Math.floor(rng() * materialOptions.length)],
+    quantity: `${(10000 + Math.floor(rng() * 90000)).toLocaleString()} Units`,
+    requiredDate: `${months[Math.floor(rng() * months.length)]} ${Math.floor(rng() * 28) + 1}, 2026.`,
+    requestedUnitPrice: item.actualPrice,
+    masterPlanPrice: item.masterPrice,
+    totalEstimatedValue: item.totalValue,
+    requester: requesterNames[Math.floor(rng() * requesterNames.length)],
+    approved: rng() > 0.3,
+  };
+}
