@@ -149,6 +149,7 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
   };
 
   const isFadingIn = animPhase === "fade-in";
+  const isTransitioning = animPhase === "fade-selected" || animPhase === "fade-in";
 
   return (
     <div className="flex flex-col gap-3 flex-1 w-full">
@@ -156,9 +157,10 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
         <span
           className="text-[12px] font-semibold leading-[12px] text-[#0a0a0a]"
           style={isFadingIn ? {
-            animation: `labelFadeIn 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards`,
+            opacity: 0,
+            animation: `labelFadeIn 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards`,
           } : {
-            transition: "opacity 250ms cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: `opacity ${animPhase === "fade-selected" ? 250 : 400}ms cubic-bezier(0.4, 0, 0.2, 1)`,
             opacity: animPhase === "fade-selected" ? 0 : 1,
           }}
         >
@@ -172,9 +174,10 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
               <span
                 className="text-[12px] leading-[16px] whitespace-nowrap text-right text-[#737373]"
                 style={isFadingIn ? {
-                  animation: `labelFadeIn 280ms cubic-bezier(0.16, 1, 0.3, 1) ${50 + idx * 40}ms both`,
+                  opacity: 0,
+                  animation: `labelFadeIn 350ms cubic-bezier(0.16, 1, 0.3, 1) ${60 + idx * 50}ms both`,
                 } : {
-                  transition: "opacity 250ms cubic-bezier(0.4, 0, 0.2, 1)",
+                  transition: `opacity ${animPhase === "fade-selected" ? 250 : 400}ms cubic-bezier(0.4, 0, 0.2, 1)`,
                   opacity: getLabelOpacity(cat.label),
                 }}
               >
@@ -186,7 +189,16 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
 
         <div className="flex flex-col flex-1">
           <div className="flex-1 relative">
-            <div className="absolute inset-0 flex justify-between pointer-events-none">
+            <div
+              className="absolute inset-0 flex justify-between pointer-events-none"
+              style={isFadingIn ? {
+                opacity: 0,
+                animation: `barFadeIn 400ms cubic-bezier(0.16, 1, 0.3, 1) both`,
+              } : {
+                transition: `opacity ${animPhase === "fade-selected" ? 250 : 400}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+                opacity: animPhase === "fade-selected" ? 0 : 1,
+              }}
+            >
               {xLabels.map((_, i) => (
                 <div key={i} className="w-px bg-[#e5e5e5] h-full" />
               ))}
@@ -200,9 +212,10 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
                     key={`${animKey}-${cat.label}`}
                     className={`flex items-center h-[16px] ${clickable ? "cursor-pointer" : ""}`}
                     style={isFadingIn ? {
-                      animation: `barFadeIn 300ms cubic-bezier(0.16, 1, 0.3, 1) ${60 + idx * 50}ms both`,
+                      opacity: 0,
+                      animation: `barFadeIn 400ms cubic-bezier(0.16, 1, 0.3, 1) ${80 + idx * 60}ms both`,
                     } : {
-                      transition: "opacity 250ms cubic-bezier(0.4, 0, 0.2, 1)",
+                      transition: `opacity ${animPhase === "fade-selected" ? 250 : 400}ms cubic-bezier(0.4, 0, 0.2, 1)`,
                       opacity: getBarOpacity(cat.label),
                     }}
                     onClick={() => {
@@ -212,7 +225,8 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
                     <div
                       className="h-full flex origin-left"
                       style={isFadingIn ? {
-                        animation: `barGrowIn 350ms cubic-bezier(0.16, 1, 0.3, 1) ${60 + idx * 50}ms both`,
+                        transform: "scaleX(0)",
+                        animation: `barGrowIn 450ms cubic-bezier(0.16, 1, 0.3, 1) ${80 + idx * 60}ms both`,
                       } : { width: "100%" }}
                     >
                       {segmentColors.map((seg, i) => {
@@ -245,7 +259,16 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div
+            className="flex flex-col gap-3"
+            style={isFadingIn ? {
+              opacity: 0,
+              animation: `labelFadeIn 400ms cubic-bezier(0.16, 1, 0.3, 1) both`,
+            } : {
+              transition: `opacity ${animPhase === "fade-selected" ? 250 : 400}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+              opacity: animPhase === "fade-selected" ? 0 : 1,
+            }}
+          >
             <div className="flex justify-between">
               {xLabels.map((label) => (
                 <span key={label} className="text-[12px] leading-[16px] text-[#737373] text-center whitespace-nowrap">
@@ -359,14 +382,14 @@ export default function SourcingOptimization() {
 
           animTimeout.current = setTimeout(() => {
             setAnimPhase("idle");
-          }, 400);
-        }, 200);
-      }, 250);
+          }, 600);
+        }, 250);
+      }, 400);
     } else {
       animTimeout.current = setTimeout(() => {
         setAnimPhase("idle");
         setCurrentPage(1);
-      }, 250);
+      }, 400);
     }
   }, [animPhase, currentCategories, drill.path]);
 
@@ -376,7 +399,7 @@ export default function SourcingOptimization() {
     setAnimKey((k) => k + 1);
     setDrill({ path: drill.path.slice(0, depth), selectedBar: null });
     setCurrentPage(1);
-    setTimeout(() => setAnimPhase("idle"), 400);
+    setTimeout(() => setAnimPhase("idle"), 600);
   };
 
   const hasChildren = (label: string): boolean => {
@@ -446,8 +469,6 @@ export default function SourcingOptimization() {
               <Breadcrumbs path={drill.path} onNavigate={handleBreadcrumbNavigate} />
             </div>
 
-            <ChartLegend />
-
             <HorizontalBarChart
               categories={currentCategories}
               selectedBar={drill.selectedBar}
@@ -457,6 +478,8 @@ export default function SourcingOptimization() {
               animPhase={animPhase}
               animKey={animKey}
             />
+
+            <ChartLegend />
           </div>
 
           {/* Data grid card */}
