@@ -312,8 +312,7 @@ export default function SourcingOptimization() {
         <div className="flex items-center justify-center p-3 w-full">
           <div className="w-8 h-8 flex items-center justify-center">
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="32" height="32" rx="4" fill="#0a0a0a"/>
-              <path d="M8 10h6v2H8v-2zm0 5h10v2H8v-2zm0 5h8v2H8v-2zm16-10h2v12h-2V10zm-4 2h2v10h-2V12z" fill="white"/>
+              <path fillRule="evenodd" clipRule="evenodd" d="M0 0H32V32H0V0ZM3.55556 3.55556H28.4444V28.4444H3.55556V3.55556ZM24.8889 7.11111H7.11111V17.7778H21.3333V21.3333H7.11111V24.8889H24.8889V14.2222H10.6667V10.6667H24.8889V7.11111Z" fill="#111112" fillOpacity="0.95"/>
             </svg>
           </div>
         </div>
