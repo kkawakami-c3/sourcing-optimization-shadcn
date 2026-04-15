@@ -134,7 +134,7 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
     if (animPhase === "fade-others") {
       return catLabel === selectedBar ? 1 : 0;
     }
-    if (selectedBar && selectedBar !== catLabel) return 0.15;
+    if (selectedBar && selectedBar !== catLabel) return 0.4;
     return 1;
   };
 
@@ -144,7 +144,7 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
     if (animPhase === "fade-others") {
       return catLabel === selectedBar ? 1 : 0;
     }
-    if (selectedBar && selectedBar !== catLabel) return 0.3;
+    if (selectedBar && selectedBar !== catLabel) return 0.4;
     return 1;
   };
 
@@ -294,8 +294,14 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
 function Breadcrumbs({ path, onNavigate }: { path: string[]; onNavigate: (depth: number) => void }) {
   if (path.length === 0) return null;
   return (
-    <div className="flex items-center gap-1 text-[12px] leading-[15px] tracking-[0.2px] shrink-0">
-      <button
+    <div
+      key={path.join("/")}
+      className="flex items-center gap-1 text-[12px] leading-[15px] tracking-[0.2px] shrink-0"
+      style={{
+        opacity: 0,
+        animation: "breadcrumbFadeIn 350ms cubic-bezier(0.16, 1, 0.3, 1) 100ms both",
+      }}
+    >  <button
         onClick={() => onNavigate(0)}
         className="font-medium text-[rgba(17,17,18,0.65)] hover:text-[rgba(17,17,18,0.85)] cursor-pointer max-w-[200px] truncate"
       >
@@ -375,10 +381,10 @@ export default function SourcingOptimization() {
     const cat = currentCategories.find((c) => c.label === label);
     const canDrill = !!(cat?.children && cat.children.length > 0);
 
-    setDrill((prev) => ({ ...prev, selectedBar: label }));
-    setAnimPhase("fade-others");
-
     if (canDrill) {
+      setDrill((prev) => ({ ...prev, selectedBar: label }));
+      setAnimPhase("fade-others");
+
       animTimeout.current = setTimeout(() => {
         setAnimPhase("fade-selected");
 
@@ -394,10 +400,11 @@ export default function SourcingOptimization() {
         }, 250);
       }, 400);
     } else {
-      animTimeout.current = setTimeout(() => {
-        setAnimPhase("idle");
-        setCurrentPage(1);
-      }, 400);
+      setDrill((prev) => ({
+        ...prev,
+        selectedBar: prev.selectedBar === label ? null : label,
+      }));
+      setCurrentPage(1);
     }
   }, [animPhase, currentCategories, drill.path]);
 
