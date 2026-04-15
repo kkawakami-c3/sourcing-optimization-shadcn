@@ -51,9 +51,14 @@ body {
 @keyframes barGrowIn {
   from {
     transform: scaleX(0);
+    opacity: 0.6;
+  }
+  20% {
+    opacity: 1;
   }
   to {
     transform: scaleX(1);
+    opacity: 1;
   }
 }
 

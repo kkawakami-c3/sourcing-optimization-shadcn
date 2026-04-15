@@ -15,7 +15,7 @@ import {
   ChevronsRight,
   ChevronDown,
 } from "lucide-react";
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { chartData, requisitionsData, type ChartCategory } from "./data";
 
 const statusMap: Record<string, string> = {
@@ -210,11 +210,8 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
                 return (
                   <div
                     key={`${animKey}-${cat.label}`}
-                    className={`flex items-center h-[16px] ${clickable ? "cursor-pointer" : ""}`}
-                    style={isFadingIn ? {
-                      opacity: 0,
-                      animation: `barFadeIn 400ms cubic-bezier(0.16, 1, 0.3, 1) ${80 + idx * 60}ms both`,
-                    } : {
+                    className={`flex items-center h-[16px] overflow-hidden ${clickable ? "cursor-pointer" : ""}`}
+                    style={isFadingIn ? {} : {
                       transition: `opacity ${animPhase === "fade-selected" ? 250 : 400}ms cubic-bezier(0.4, 0, 0.2, 1)`,
                       opacity: getBarOpacity(cat.label),
                     }}
@@ -223,11 +220,11 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
                     }}
                   >
                     <div
-                      className="h-full flex origin-left"
+                      className="h-full flex origin-left w-full"
                       style={isFadingIn ? {
                         transform: "scaleX(0)",
-                        animation: `barGrowIn 450ms cubic-bezier(0.16, 1, 0.3, 1) ${80 + idx * 60}ms both`,
-                      } : { width: "100%" }}
+                        animation: `barGrowIn 500ms cubic-bezier(0.22, 1, 0.36, 1) ${120 + idx * 80}ms both`,
+                      } : {}}
                     >
                       {segmentColors.map((seg, i) => {
                         const val = cat[seg.key];
@@ -321,9 +318,14 @@ export default function SourcingOptimization() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [drill, setDrill] = useState<DrillState>({ path: [], selectedBar: null });
-  const [animPhase, setAnimPhase] = useState<AnimPhase>("idle");
+  const [animPhase, setAnimPhase] = useState<AnimPhase>("fade-in");
   const [animKey, setAnimKey] = useState(0);
   const animTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setAnimPhase("idle"), 700);
+    return () => clearTimeout(t);
+  }, []);
 
   const currentCategories = useMemo(() => getCategories(drill.path), [drill.path]);
   const axisLabel = getAxisLabel(drill.path.length, drill.path[drill.path.length - 1]);
