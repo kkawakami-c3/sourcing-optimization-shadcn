@@ -293,16 +293,22 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
 
 const stepLabels = ["Requisition", "Order Line", "Invoice Matching", "Rebates"];
 
-function ProgressStepper({ currentStep }: { currentStep: number }) {
+function ProgressStepper({ currentStep, activeTab, onTabClick }: { currentStep: number; activeTab?: number; onTabClick?: (idx: number) => void }) {
   return (
-    <div className="flex gap-[25px] items-center w-full">
+    <div className="flex gap-[25px] items-start w-full">
       {stepLabels.map((label, idx) => {
         const isComplete = idx < currentStep;
         const isCurrent = idx === currentStep;
         const isIncomplete = idx > currentStep;
+        const isClickable = onTabClick && (isComplete || isCurrent);
+        const isActive = activeTab === idx;
         return (
-          <div key={label} className="flex-1 flex flex-col gap-2 items-start">
-            <div className="w-full h-[9px] rounded-full overflow-hidden bg-[#fafafa]">
+          <div
+            key={label}
+            className={`flex-1 flex flex-col gap-2 ${isClickable ? "cursor-pointer" : ""}`}
+            onClick={() => isClickable && onTabClick(idx)}
+          >
+            <div className="w-full h-[9px] rounded-full overflow-hidden bg-[#e5e5e5]">
               {isComplete && <div className="h-full w-full bg-[#2563eb] rounded-full" />}
               {isCurrent && (
                 <div className="h-full bg-[#2563eb] rounded-full" style={{ width: "45%" }} />
@@ -326,7 +332,7 @@ function ProgressStepper({ currentStep }: { currentStep: number }) {
                   <circle cx="7" cy="7" r="6" stroke="#737373" strokeWidth="1.5" />
                 </svg>
               )}
-              <span className="text-[12px] font-medium leading-[15px] tracking-[0.2px] text-[#0a0a0a]">{label}</span>
+              <span className={`text-[12px] font-medium leading-[15px] tracking-[0.2px] ${isActive ? "text-[#2563eb]" : "text-[#0a0a0a]"}`}>{label}</span>
             </div>
           </div>
         );
@@ -337,6 +343,29 @@ function ProgressStepper({ currentStep }: { currentStep: number }) {
 
 function DetailView({ item, onBack }: { item: RequisitionItem; onBack: () => void }) {
   const detail = useMemo(() => getItemDetail(item), [item]);
+  const [activeTab, setActiveTab] = useState(() => Math.min(detail.currentStep, 1));
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderSearch, setOrderSearch] = useState("");
+
+  const filteredOrders = useMemo(() => {
+    if (!orderSearch) return detail.orders;
+    const q = orderSearch.toLowerCase();
+    return detail.orders.filter(
+      (o) =>
+        o.poNumber.toLowerCase().includes(q) ||
+        o.supplier.toLowerCase().includes(q) ||
+        o.status.toLowerCase().includes(q)
+    );
+  }, [detail.orders, orderSearch]);
+
+  const ordersPerPage = 12;
+  const totalOrderPages = Math.ceil(filteredOrders.length / ordersPerPage);
+  const paginatedOrders = filteredOrders.slice(
+    (orderPage - 1) * ordersPerPage,
+    orderPage * ordersPerPage
+  );
+  const orderStart = (orderPage - 1) * ordersPerPage + 1;
+  const orderEnd = Math.min(orderPage * ordersPerPage, filteredOrders.length);
 
   return (
     <>
@@ -352,7 +381,7 @@ function DetailView({ item, onBack }: { item: RequisitionItem; onBack: () => voi
 
       <div className="flex flex-col gap-4 p-4 flex-1 overflow-auto">
         {/* Header card with progress stepper */}
-        <div className="bg-white rounded-sm shadow-[0px_2px_1px_0px_rgba(17,17,18,0.04),0px_1px_6px_0px_rgba(17,17,18,0.1),0px_1px_2px_0px_rgba(17,17,18,0.2)] flex flex-col gap-8 p-7 overflow-hidden">
+        <div className="bg-white rounded-sm shadow-[0px_2px_1px_0px_rgba(17,17,18,0.04),0px_1px_6px_0px_rgba(17,17,18,0.1),0px_1px_2px_0px_rgba(17,17,18,0.2)] flex flex-col gap-8 p-7">
           <div className="flex flex-col gap-1">
             <span className="text-[12px] font-medium leading-[15px] text-[rgba(17,17,18,0.65)] uppercase tracking-[0.6px]">
               {detail.categoryLabel}
@@ -362,74 +391,236 @@ function DetailView({ item, onBack }: { item: RequisitionItem; onBack: () => voi
               Last updated on {detail.lastUpdated}
             </span>
           </div>
-          <ProgressStepper currentStep={detail.currentStep} />
+          <ProgressStepper currentStep={detail.currentStep} activeTab={activeTab} onTabClick={setActiveTab} />
         </div>
 
-        {/* Requisition card */}
-        <div className="bg-white rounded-sm shadow-[0px_2px_1px_0px_rgba(17,17,18,0.04),0px_1px_6px_0px_rgba(17,17,18,0.1),0px_1px_2px_0px_rgba(17,17,18,0.2)] flex flex-col gap-8 p-7 overflow-hidden">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-[10px]">
-              <span className="text-[12px] font-medium leading-[15px] text-[rgba(17,17,18,0.65)] uppercase tracking-[0.6px]">
-                {detail.reqId}
-              </span>
-              {detail.approved && (
-                <span className="bg-[#c8f7ef] border border-[#c8f7ef] text-[#112e27] text-[14px] leading-[1.42] px-[9px] py-[3px] rounded">
-                  Approved
+        {/* Requisition tab */}
+        {activeTab === 0 && (
+          <div className="bg-white rounded-sm shadow-[0px_2px_1px_0px_rgba(17,17,18,0.04),0px_1px_6px_0px_rgba(17,17,18,0.1),0px_1px_2px_0px_rgba(17,17,18,0.2)] flex flex-col gap-8 p-7">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-[10px]">
+                <span className="text-[12px] font-medium leading-[15px] text-[rgba(17,17,18,0.65)] uppercase tracking-[0.6px]">
+                  {detail.reqId}
                 </span>
-              )}
+                {detail.approved && (
+                  <span className="bg-[#c8f7ef] border border-[#c8f7ef] text-[#112e27] text-[14px] leading-[1.42] px-[9px] py-[3px] rounded">
+                    Approved
+                  </span>
+                )}
+              </div>
+              <h2 className="text-[20px] font-medium leading-[25px] text-[rgba(17,17,18,0.95)]">Requisition</h2>
+              <span className="text-[12px] font-normal leading-[15px] text-[rgba(17,17,18,0.65)] tracking-[0.2px]">
+                {detail.requester}
+              </span>
             </div>
-            <h2 className="text-[20px] font-medium leading-[25px] text-[rgba(17,17,18,0.95)]">Requisition</h2>
-            <span className="text-[12px] font-normal leading-[15px] text-[rgba(17,17,18,0.65)] tracking-[0.2px]">
-              {detail.requester}
-            </span>
-          </div>
 
-          <div className="flex gap-[10px] text-[14px] tracking-[0.2px] text-[rgba(17,17,18,0.95)]">
-            <div className="flex-1 flex flex-col gap-4">
-              <div className="flex items-start">
-                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Part</span>
-                <span className="font-normal leading-[21px]">{detail.partNumber}</span>
+            <div className="flex gap-[10px] text-[14px] tracking-[0.2px] text-[rgba(17,17,18,0.95)]">
+              <div className="flex-1 flex flex-col gap-4">
+                <div className="flex items-start">
+                  <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Part</span>
+                  <span className="font-normal leading-[21px]">{detail.partNumber}</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Material Specs</span>
+                  <span className="font-normal leading-[21px]">{detail.materialSpecs}</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Quantity</span>
+                  <span className="font-normal leading-[21px]">{detail.quantity}</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Required Date</span>
+                  <span className="font-normal leading-[21px]">{detail.requiredDate}</span>
+                </div>
               </div>
-              <div className="flex items-start">
-                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Material Specs</span>
-                <span className="font-normal leading-[21px]">{detail.materialSpecs}</span>
-              </div>
-              <div className="flex items-start">
-                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Quantity</span>
-                <span className="font-normal leading-[21px]">{detail.quantity}</span>
-              </div>
-              <div className="flex items-start">
-                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Required Date</span>
-                <span className="font-normal leading-[21px]">{detail.requiredDate}</span>
+              <div className="flex-1 flex flex-col gap-4">
+                <div className="flex items-start">
+                  <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Requested Unit Price</span>
+                  <span className="font-normal leading-[21px]">{detail.requestedUnitPrice}</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Master Plan Price</span>
+                  <span className="font-normal leading-[21px]">{detail.masterPlanPrice}</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Total Estimated Value</span>
+                  <span className="font-normal leading-[21px]">{detail.totalEstimatedValue}</span>
+                </div>
               </div>
             </div>
-            <div className="flex-1 flex flex-col gap-4">
-              <div className="flex items-start">
-                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Requested Unit Price</span>
-                <span className="font-normal leading-[21px]">{detail.requestedUnitPrice}</span>
-              </div>
-              <div className="flex items-start">
-                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Master Plan Price</span>
-                <span className="font-normal leading-[21px]">{detail.masterPlanPrice}</span>
-              </div>
-              <div className="flex items-start">
-                <span className="font-medium leading-[17.5px] w-[217px] shrink-0">Total Estimated Value</span>
-                <span className="font-normal leading-[21px]">{detail.totalEstimatedValue}</span>
-              </div>
-            </div>
-          </div>
 
-          <div className="flex items-end justify-end pt-6">
-            <div className="flex gap-4">
-              <button className="h-10 min-w-[80px] px-3 border border-[#db1c3c] rounded-sm text-[14px] font-medium text-[#db1c3c] opacity-40">
-                Reject
-              </button>
-              <button className="h-10 min-w-[80px] px-3 bg-[#2266f0] rounded-sm text-[14px] font-medium text-white opacity-40">
-                Approve
-              </button>
+            <div className="flex items-end justify-end pt-6">
+              <div className="flex gap-4">
+                <button className="h-10 min-w-[80px] px-3 border border-[#db1c3c] rounded-sm text-[14px] font-medium text-[#db1c3c] opacity-40">
+                  Reject
+                </button>
+                <button className="h-10 min-w-[80px] px-3 bg-[#2266f0] rounded-sm text-[14px] font-medium text-white opacity-40">
+                  Approve
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Order Line tab */}
+        {activeTab === 1 && (
+          <>
+            <div className="bg-white rounded-sm shadow-[0px_2px_1px_0px_rgba(17,17,18,0.04),0px_1px_6px_0px_rgba(17,17,18,0.1),0px_1px_2px_0px_rgba(17,17,18,0.2)] flex flex-col gap-8 p-7">
+              <div className="flex flex-col gap-1">
+                <span className="text-[12px] font-medium leading-[15px] text-[rgba(17,17,18,0.65)] uppercase tracking-[0.6px]">
+                  {detail.reqId}
+                </span>
+                <h2 className="text-[20px] font-medium leading-[25px] text-[rgba(17,17,18,0.95)]">Order Line</h2>
+              </div>
+
+              <div className="flex gap-[10px] text-[14px] tracking-[0.2px] text-[rgba(17,17,18,0.95)]">
+                <div className="flex-1 flex flex-col gap-4">
+                  <div className="flex items-start">
+                    <span className="font-semibold leading-[16px] w-[217px] shrink-0">Total Spend</span>
+                    <span className="font-normal leading-[20px]">{detail.totalSpend}</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="font-semibold leading-[16px] w-[217px] shrink-0">Total Volume</span>
+                    <span className="font-normal leading-[20px]">{detail.totalVolume}</span>
+                  </div>
+                </div>
+                <div className="flex-1 flex flex-col gap-4">
+                  <div className="flex items-start">
+                    <span className="font-semibold leading-[16px] w-[217px] shrink-0">Average Price Paid</span>
+                    <span className="font-normal leading-[20px]">{detail.avgPricePaid}</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="font-semibold leading-[16px] w-[217px] shrink-0">Active Suppliers</span>
+                    <span className="font-normal leading-[20px]">{detail.activeSuppliers}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Orders data grid */}
+            <div className="bg-white border border-[#e5e5e5] rounded-md flex flex-col p-4">
+              <div className="flex flex-col pb-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center h-6">
+                    <h2 className="text-[16px] font-semibold leading-[20px] text-[#0a0a0a]">Orders</h2>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="border border-[#e5e5e5] flex items-center gap-2 h-8 px-3 rounded-sm w-[200px]">
+                      <Search className="w-3.5 h-3.5 text-[#737373] shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Search"
+                        value={orderSearch}
+                        onChange={(e) => { setOrderSearch(e.target.value); setOrderPage(1); }}
+                        className="text-sm text-[#737373] bg-transparent outline-none flex-1 placeholder:text-[#737373]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col">
+                <div className="border-t border-[#e5e5e5] flex items-center">
+                  {["PO #", "Date of Arrival", "Status", "Supplier", "Price Per Unit"].map((header) => (
+                    <div key={header} className="flex-1 flex items-center gap-1 h-8 min-h-8 overflow-hidden px-2 py-1">
+                      <span className="text-sm font-semibold text-[#0a0a0a] tracking-[0.1px] truncate">{header}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-end h-8 min-h-8 w-[60px] max-w-[60px] min-w-[60px] px-2 py-1">
+                    <div className="opacity-0">
+                      <Ellipsis className="w-3.5 h-3.5 text-[#737373]" />
+                    </div>
+                  </div>
+                </div>
+
+                {paginatedOrders.map((order, idx) => (
+                  <div key={idx} className="border-t border-[#e5e5e5] flex items-center h-12">
+                    <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
+                      <span className="text-sm text-[#2563eb] truncate">{order.poNumber}</span>
+                    </div>
+                    <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
+                      <span className="text-sm text-[#0a0a0a] truncate">{order.dateOfArrival}</span>
+                    </div>
+                    <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
+                      <span className="text-sm text-[#0a0a0a] truncate">{order.status}</span>
+                    </div>
+                    <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
+                      <span className="text-sm text-[#0a0a0a] truncate">{order.supplier}</span>
+                    </div>
+                    <div className="flex-1 flex items-center h-full overflow-hidden px-2 py-1">
+                      <span className="text-sm text-[#0a0a0a] truncate">{order.pricePerUnit}</span>
+                    </div>
+                    <div className="flex items-center justify-end h-full w-[60px] max-w-[60px] min-w-[60px] px-2 py-1">
+                      <button className="flex items-center justify-center w-6 h-6 rounded-sm">
+                        <Ellipsis className="w-3.5 h-3.5 text-[#737373]" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {paginatedOrders.length === 0 && (
+                  <div className="border-t border-[#e5e5e5] flex items-center justify-center h-24">
+                    <span className="text-sm text-[#737373]">No orders found</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-[#e5e5e5] flex items-center justify-between pt-4 px-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[12px] font-medium leading-[12px] text-[#737373]">Rows per page:</span>
+                  <button className="flex items-center gap-1 border-b border-[#e5e5e5] h-6">
+                    <span className="text-[12px] font-medium leading-[12px] text-[#0a0a0a]">12</span>
+                    <ChevronDown className="w-4 h-4 text-[#737373]" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-[12px] font-medium leading-[12px] text-[#737373]">
+                    {filteredOrders.length > 0 ? `${orderStart} - ${orderEnd} of ${filteredOrders.length} items` : "0 items"}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setOrderPage((p) => Math.max(1, p - 1))}
+                      disabled={orderPage === 1}
+                      className="h-6 flex items-center justify-center px-[9px] text-[#737373] disabled:opacity-40"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    {Array.from({ length: Math.min(totalOrderPages, 5) }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setOrderPage(page)}
+                        className={`w-6 h-6 flex items-center justify-center text-[12px] font-medium leading-[12px] ${
+                          orderPage === page
+                            ? "text-[#2563eb] border-b-[3px] border-[#2563eb]"
+                            : "text-[#0a0a0a]"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    {totalOrderPages > 5 && (
+                      <span className="w-6 h-6 flex items-center justify-center text-[12px] font-medium leading-[12px] text-[#0a0a0a]">...</span>
+                    )}
+                    <button
+                      onClick={() => setOrderPage((p) => Math.min(totalOrderPages, p + 1))}
+                      disabled={orderPage === totalOrderPages || totalOrderPages === 0}
+                      className="h-6 flex items-center justify-center px-[9px] text-[#737373] disabled:opacity-40"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setOrderPage(totalOrderPages)}
+                      disabled={orderPage === totalOrderPages || totalOrderPages === 0}
+                      className="h-6 flex items-center justify-center px-[6px] text-[#737373] disabled:opacity-40"
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </>
   );
