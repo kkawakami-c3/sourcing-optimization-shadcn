@@ -658,7 +658,7 @@ function Breadcrumbs({ path, onNavigate }: { path: string[]; onNavigate: (depth:
         <>
           <button
             onClick={() => onNavigate(0)}
-            className="h-[28px] px-2 rounded bg-[#f5f5f5] text-[14px] leading-[1.42] text-[#737373] whitespace-nowrap cursor-pointer hover:bg-[#ebebeb] transition-colors"
+            className="h-[28px] px-2 rounded text-[14px] leading-[1.42] text-[#0a0a0a] whitespace-nowrap cursor-pointer hover:text-[#737373] transition-colors"
           >
             All Categories
           </button>
@@ -668,12 +668,12 @@ function Breadcrumbs({ path, onNavigate }: { path: string[]; onNavigate: (depth:
               {i < path.length - 1 ? (
                 <button
                   onClick={() => onNavigate(i + 1)}
-                  className="h-[28px] px-2 rounded bg-[#f5f5f5] text-[14px] leading-[1.42] text-[#737373] whitespace-nowrap cursor-pointer hover:bg-[#ebebeb] transition-colors"
+                  className="h-[28px] px-2 rounded text-[14px] leading-[1.42] text-[#0a0a0a] whitespace-nowrap cursor-pointer hover:text-[#737373] transition-colors"
                 >
                   {segment}
                 </button>
               ) : (
-                <span className="h-[28px] px-2 rounded border border-[#0a0a0a] text-[14px] leading-[1.42] text-[#0a0a0a] whitespace-nowrap flex items-center">
+                <span className="h-[28px] px-2 rounded border border-[#2563eb] text-[14px] leading-[1.42] text-[#2563eb] whitespace-nowrap flex items-center">
                   {segment}
                 </span>
               )}
@@ -681,7 +681,7 @@ function Breadcrumbs({ path, onNavigate }: { path: string[]; onNavigate: (depth:
           ))}
         </>
       ) : (
-        <span className="h-[28px] px-2 rounded border border-[#0a0a0a] text-[14px] leading-[1.42] text-[#0a0a0a] whitespace-nowrap flex items-center">
+        <span className="h-[28px] px-2 rounded border border-[#2563eb] text-[14px] leading-[1.42] text-[#2563eb] whitespace-nowrap flex items-center">
           All Categories
         </span>
       )}
