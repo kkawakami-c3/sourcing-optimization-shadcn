@@ -25,6 +25,13 @@ const statusMap: Record<string, string> = {
   "Price Leakage": "priceLeakage",
 };
 
+const segKeyToStatus: Record<string, string[]> = {
+  openReq: ["Open Requisition"],
+  activeOrder: ["Active Order Line"],
+  onPlan: ["On-Plan"],
+  priceLeakage: ["Price Leakage"],
+};
+
 type AnimPhase = "idle" | "fade-others" | "fade-selected" | "fade-in";
 
 const navItems = [
@@ -55,15 +62,25 @@ const segmentColors = [
   { key: "priceLeakage" as const, color: "#ef4444", label: "Price Leakage" },
 ];
 
-function ChartLegend() {
+function ChartLegend({ activeSegments, onToggle }: { activeSegments: Set<string>; onToggle: (segKey: string) => void }) {
+  const hasFilter = activeSegments.size > 0;
   return (
     <div className="flex flex-wrap gap-3">
-      {segmentColors.map((item) => (
-        <div key={item.label} className="flex items-center gap-1 px-1 py-0.5 rounded-[2px]">
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-          <span className="text-[12px] leading-[16px] text-[#0a0a0a]">{item.label}</span>
-        </div>
-      ))}
+      {segmentColors.map((item) => {
+        const isActive = activeSegments.has(item.key);
+        const dimmed = hasFilter && !isActive;
+        return (
+          <button
+            key={item.label}
+            className="flex items-center gap-1 px-1 py-0.5 rounded-[2px] cursor-pointer transition-opacity duration-200"
+            style={{ opacity: dimmed ? 0.4 : 1 }}
+            onClick={() => onToggle(item.key)}
+          >
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+            <span className="text-[12px] leading-[16px] text-[#0a0a0a]">{item.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -122,9 +139,11 @@ interface BarChartProps {
   hasChildren: (label: string) => boolean;
   animPhase: AnimPhase;
   animKey: number;
+  activeSegments: Set<string>;
+  onSegmentClick: (segKey: string, catLabel: string) => void;
 }
 
-function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, hasChildren, animPhase, animKey }: BarChartProps) {
+function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, hasChildren, animPhase, animKey, activeSegments, onSegmentClick }: BarChartProps) {
   const maxVal = getMaxValue(categories);
   const xLabels = generateXLabels(maxVal);
 
@@ -172,13 +191,16 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
           {categories.map((cat, idx) => (
             <div key={`${animKey}-${cat.label}`} className="flex items-center justify-end">
               <span
-                className="text-[12px] leading-[16px] whitespace-nowrap text-right text-[#737373]"
+                className={`text-[12px] leading-[16px] whitespace-nowrap text-right text-[#737373] ${hasChildren(cat.label) ? "cursor-pointer hover:text-[#0a0a0a]" : ""}`}
                 style={isFadingIn ? {
                   opacity: 0,
                   animation: `labelFadeIn 350ms cubic-bezier(0.16, 1, 0.3, 1) ${60 + idx * 50}ms both`,
                 } : {
                   transition: `opacity ${animPhase === "fade-selected" ? 250 : 400}ms cubic-bezier(0.4, 0, 0.2, 1)`,
                   opacity: getLabelOpacity(cat.label),
+                }}
+                onClick={() => {
+                  if (animPhase === "idle" && hasChildren(cat.label)) onBarClick(cat.label);
                 }}
               >
                 {cat.label}
@@ -206,17 +228,13 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
 
             <div className="relative h-full flex flex-col justify-around py-2">
               {categories.map((cat, idx) => {
-                const clickable = hasChildren(cat.label);
                 return (
                   <div
                     key={`${animKey}-${cat.label}`}
-                    className={`flex items-center h-[16px] ${isFadingIn ? "overflow-hidden" : "overflow-visible"} ${clickable ? "cursor-pointer" : ""}`}
+                    className={`flex items-center h-[16px] ${isFadingIn ? "overflow-hidden" : "overflow-visible"}`}
                     style={isFadingIn ? {} : {
                       transition: `opacity ${animPhase === "fade-selected" ? 250 : 400}ms cubic-bezier(0.4, 0, 0.2, 1)`,
                       opacity: getBarOpacity(cat.label),
-                    }}
-                    onClick={() => {
-                      if (animPhase === "idle") onBarClick(cat.label);
                     }}
                   >
                     <div
@@ -231,13 +249,18 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
                         const pct = (val / maxVal) * 100;
                         const isFirst = i === 0;
                         const isLast = i === segmentColors.length - 1;
+                        const hasSegFilter = activeSegments.size > 0;
+                        const segActive = activeSegments.has(seg.key);
+                        const segOpacity = hasSegFilter && !segActive ? 0.4 : 1;
                         return (
                           <div
                             key={seg.key}
-                            className="h-full relative group/seg"
+                            className="h-full relative group/seg cursor-pointer"
                             style={{
                               width: `${pct}%`,
                               backgroundColor: seg.color,
+                              opacity: segOpacity,
+                              transition: "opacity 250ms ease",
                               borderRadius: isFirst && isLast
                                 ? "2px"
                                 : isFirst
@@ -246,6 +269,7 @@ function HorizontalBarChart({ categories, selectedBar, axisLabel, onBarClick, ha
                                 ? "0 2px 2px 0"
                                 : undefined,
                             }}
+                            onClick={() => onSegmentClick(seg.key, cat.label)}
                           >
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-[#0a0a0a] text-white text-[11px] leading-[14px] rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover/seg:opacity-100 transition-opacity duration-150 z-50 shadow-lg">
                               <div className="font-medium">{seg.label}</div>
@@ -616,39 +640,50 @@ function DetailView({ item, onBack }: { item: RequisitionItem; onBack: () => voi
 }
 
 function Breadcrumbs({ path, onNavigate }: { path: string[]; onNavigate: (depth: number) => void }) {
+  const pathKey = path.length > 0 ? path.join("/") : "root";
   return (
-    <div className="h-[15px]">
-      {path.length > 0 && (
-        <div
-          key={path.join("/")}
-          className="flex items-center gap-1 text-[12px] leading-[15px] tracking-[0.2px]"
-          style={{
-            opacity: 0,
-            animation: "breadcrumbFadeIn 350ms cubic-bezier(0.16, 1, 0.3, 1) 100ms both",
-          }}
-        >
+    <div
+      key={pathKey}
+      className="flex items-center gap-2 shrink-0 h-[28px]"
+      style={
+        path.length > 0
+          ? {
+              opacity: 0,
+              animation: "breadcrumbFadeIn 350ms cubic-bezier(0.16, 1, 0.3, 1) 100ms both",
+            }
+          : undefined
+      }
+    >
+      {path.length > 0 ? (
+        <>
           <button
             onClick={() => onNavigate(0)}
-            className="font-medium text-[rgba(17,17,18,0.65)] hover:text-[rgba(17,17,18,0.85)] cursor-pointer max-w-[200px] truncate"
+            className="h-[28px] px-2 rounded bg-[#f5f5f5] text-[14px] leading-[1.42] text-[#737373] whitespace-nowrap cursor-pointer hover:bg-[#ebebeb] transition-colors"
           >
             All Categories
           </button>
           {path.map((segment, i) => (
-            <span key={i} className="flex items-center gap-1">
-              <span className="text-[#6c717a]">/</span>
-              {i === path.length - 1 ? (
-                <span className="font-medium text-[rgba(17,17,18,0.95)] max-w-[200px] truncate">{segment}</span>
-              ) : (
+            <span key={i} className="flex items-center gap-2">
+              <ChevronRight className="w-4 h-4 text-[#737373] shrink-0" />
+              {i < path.length - 1 ? (
                 <button
                   onClick={() => onNavigate(i + 1)}
-                  className="font-medium text-[rgba(17,17,18,0.65)] hover:text-[rgba(17,17,18,0.85)] cursor-pointer max-w-[200px] truncate"
+                  className="h-[28px] px-2 rounded bg-[#f5f5f5] text-[14px] leading-[1.42] text-[#737373] whitespace-nowrap cursor-pointer hover:bg-[#ebebeb] transition-colors"
                 >
                   {segment}
                 </button>
+              ) : (
+                <span className="h-[28px] px-2 rounded border border-[#0a0a0a] text-[14px] leading-[1.42] text-[#0a0a0a] whitespace-nowrap flex items-center">
+                  {segment}
+                </span>
               )}
             </span>
           ))}
-        </div>
+        </>
+      ) : (
+        <span className="h-[28px] px-2 rounded border border-[#0a0a0a] text-[14px] leading-[1.42] text-[#0a0a0a] whitespace-nowrap flex items-center">
+          All Categories
+        </span>
       )}
     </div>
   );
@@ -661,6 +696,7 @@ export default function SourcingOptimization() {
   const [animPhase, setAnimPhase] = useState<AnimPhase>("fade-in");
   const [selectedItem, setSelectedItem] = useState<RequisitionItem | null>(null);
   const [animKey, setAnimKey] = useState(0);
+  const [activeSegments, setActiveSegments] = useState<Set<string>>(new Set());
   const animTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -699,6 +735,14 @@ export default function SourcingOptimization() {
         items = items.filter((r) => r.subCategory === drill.selectedBar);
       }
     }
+    if (activeSegments.size > 0) {
+      const allowedStatuses = new Set<string>();
+      for (const key of activeSegments) {
+        const statuses = segKeyToStatus[key];
+        if (statuses) statuses.forEach((s) => allowedStatuses.add(s));
+      }
+      items = items.filter((r) => allowedStatuses.has(r.status));
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       items = items.filter(
@@ -709,7 +753,7 @@ export default function SourcingOptimization() {
       );
     }
     return items;
-  }, [drill, searchQuery]);
+  }, [drill, searchQuery, activeSegments]);
 
   const handleBarClick = useCallback((label: string) => {
     if (animPhase !== "idle") return;
@@ -731,7 +775,7 @@ export default function SourcingOptimization() {
           setAnimPhase("fade-in");
           setCurrentPage(1);
         }, 250);
-      }, 400);
+      }, 700);
     } else {
       setDrill((prev) => ({
         ...prev,
@@ -748,6 +792,52 @@ export default function SourcingOptimization() {
     setDrill({ path: drill.path.slice(0, depth), selectedBar: null });
     setCurrentPage(1);
   };
+
+  const handleSegmentClick = useCallback((segKey: string, catLabel: string) => {
+    if (animPhase !== "idle") return;
+
+    const cat = currentCategories.find((c) => c.label === catLabel);
+    const canDrill = !!(cat?.children && cat.children.length > 0);
+
+    if (canDrill) {
+      if (animTimeout.current) clearTimeout(animTimeout.current);
+      setActiveSegments(new Set([segKey]));
+      setDrill((prev) => ({ ...prev, selectedBar: catLabel }));
+      setAnimPhase("fade-others");
+
+      animTimeout.current = setTimeout(() => {
+        setAnimPhase("fade-selected");
+
+        animTimeout.current = setTimeout(() => {
+          setAnimKey((k) => k + 1);
+          setDrill({ path: [...drill.path, catLabel], selectedBar: null });
+          setAnimPhase("fade-in");
+          setCurrentPage(1);
+        }, 250);
+      }, 700);
+    } else {
+      setActiveSegments((prev) => {
+        if (prev.has(segKey) && prev.size === 1) {
+          return new Set();
+        }
+        return new Set([segKey]);
+      });
+      setCurrentPage(1);
+    }
+  }, [animPhase, currentCategories, drill.path]);
+
+  const handleLegendToggle = useCallback((segKey: string) => {
+    setActiveSegments((prev) => {
+      const next = new Set(prev);
+      if (next.has(segKey)) {
+        next.delete(segKey);
+      } else {
+        next.add(segKey);
+      }
+      return next;
+    });
+    setCurrentPage(1);
+  }, []);
 
   const hasChildren = (label: string): boolean => {
     const cat = currentCategories.find((c) => c.label === label);
@@ -807,18 +897,19 @@ export default function SourcingOptimization() {
         <div className="flex flex-col gap-2 p-4 flex-1 overflow-auto">
           {/* Chart card */}
           <div className="bg-white border border-[#e5e5e5] rounded-md flex flex-col gap-4 p-4 h-[468px]">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-3 h-6">
-                <div className="flex-1 flex items-center gap-1 h-6">
-                  <h2 className="text-[16px] font-semibold leading-[20px] text-[#0a0a0a]">Procurement Triage</h2>
+            <div className="flex items-start gap-[10px]">
+              <div className="flex-1 flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-3 h-6">
+                  <div className="flex-1 flex items-center gap-1 h-6">
+                    <h2 className="text-[16px] font-semibold leading-[20px] text-[#0a0a0a]">Procurement Triage</h2>
+                  </div>
                 </div>
+                <p className="text-[14px] leading-[20px] text-[#737373]">
+                  Monitoring $412 M in total spend lifecycle across key commodity groups
+                </p>
               </div>
-              <p className="text-[14px] leading-[20px] text-[#737373]">
-                Monitoring $412 M in total spend lifecycle across key commodity groups
-              </p>
+              <Breadcrumbs path={drill.path} onNavigate={handleBreadcrumbNavigate} />
             </div>
-
-            <Breadcrumbs path={drill.path} onNavigate={handleBreadcrumbNavigate} />
 
             <HorizontalBarChart
               key={animKey}
@@ -829,9 +920,11 @@ export default function SourcingOptimization() {
               hasChildren={hasChildren}
               animPhase={animPhase}
               animKey={animKey}
+              activeSegments={activeSegments}
+              onSegmentClick={handleSegmentClick}
             />
 
-            <ChartLegend />
+            <ChartLegend activeSegments={activeSegments} onToggle={handleLegendToggle} />
           </div>
 
           {/* Data grid card */}
